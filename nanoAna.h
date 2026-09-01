@@ -516,9 +516,18 @@ public :
   void createGenJets();
   void createSignalArrays();
 
-  //loadGoldenJSONs.h
+  //LoadGoldenJSONs.h
   json loadGoldenJSON();
   bool checkGoldenJSON(int runno, int lumisection);
+
+  //VetoEvents.h
+  int electronCustomID(Int_t bitmap,int quality, int skipCut);
+  bool Veto3L4L();
+  bool VetoHEM(vector<Particle> jet);
+  bool VetoEE(vector<Particle> jet);
+
+  //AnalysisLogic.h
+  void runAnalysis();
 
 protected:
   Hists h;
@@ -542,9 +551,14 @@ private:
 
   // Flags
   bool GoodEvt, GoodEvt2016, GoodEvt2017, GoodEvt2018;
+  bool evt_2L, evt_2LOS, evt_2LSS;
+  bool evt_mm, evt_me, evt_em, evt_ee;
   
   // Counters:
   int nEvtTotal, nEvtRan, nEvtTrigger, nThrown, nEvtPass;
+  int nevt_OS, nevt_OSmm, nevt_OSme, nevt_OSem, nevt_OSee;
+  int nevt_SS, nevt_SSmm, nevt_SSme, nevt_SSem, nevt_SSee;
+  int nevt_3L4L, nevt_HEM, nevt_EE;
   float genEventSumW;
 
   // Variables relevant for the analysis
@@ -567,7 +581,7 @@ private:
   vector<Particle> vllep, vlnu;
   vector<Particle> Muon, Electron, LightLepton, Photon, Tau, Jet, FatJet, bJet, MediumbJet;
   vector<Particle> LooseLepton, LooseMuon, LooseElectron;
-  vector<Particle> llep_3L4L, looseMuon_3L4L; //For 3L/4L veto
+  vector<Particle> llep_3L4L, loosemu_3L4L; //For 3L/4L veto
 
   //---------------------------------------------------------------------------------
   // DNN block

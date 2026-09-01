@@ -14,9 +14,11 @@
 #include "headers/Init.h"
 #include "headers/BookHistograms.h"
 #include "headers/CustomFunctions.h"
-#include "headers/loadGoldenJSONs.h"
+#include "headers/LoadGoldenJSONs.h"
 #include "headers/ProduceGenCollection.h"
 #include "headers/ProduceRecoCollection.h"
+#include "headers/VetoEvents.h"
+#include "headers/AnalysisLogic.h"
 
 void nanoAna::Begin(TTree * /*tree*/){TString option = GetOption();}
 void nanoAna::SlaveBegin(TTree *tree)
@@ -65,6 +67,9 @@ void nanoAna::SlaveBegin(TTree *tree)
   nEvtPass       = 0;
   nThrown        = 0;
   genEventSumW   = 0;
+  nevt_OS=0; nevt_OSmm=0; nevt_OSme=0; nevt_OSem=0; nevt_OSee=0;
+  nevt_SS=0; nevt_SSmm=0; nevt_SSme=0; nevt_SSem=0; nevt_SSee=0;
+  nevt_3L4L=0; nevt_HEM=0; nevt_EE=0;
 
   // Constants:
   nEvtGen = tree->GetEntries(); 
@@ -103,7 +108,6 @@ void nanoAna::SlaveTerminate()
   float goodevtfrac = ((float)nEvtRan)/((float)nEvtTotal);
   float trigevtfrac = ((float)nEvtTrigger)/((float)nEvtTotal);
   float passevtfrac = ((float)nEvtPass)/((float)nEvtTotal);
-  //float badevtfrac  = ((float)nEvtBad)/((float)nEvtTotal);//for VLLD
   float notgoldenevtfrac  = ((float)nThrown)/((float)nEvtTotal);
 
   cout<<"---------------------------------------------"<<endl;
@@ -112,11 +116,27 @@ void nanoAna::SlaveTerminate()
   cout<<"nEvtRan     = "<<nEvtRan<<" ("<<goodevtfrac*100<<" %)"<<endl;
   cout<<"nEvtTrigger = "<<nEvtTrigger<<" ("<<trigevtfrac*100<<" %)"<<endl;
   cout<<"nEvtPass    = "<<nEvtPass<<" ("<<passevtfrac*100<<" %)"<<endl;
-  //cout<<"nEvtBad     = "<<nEvtBad<<" ("<<badevtfrac*100<<" %)"<<endl;
-  //cout<<"nEvtVeto    = "<<nEvtVeto<<endl;
   if(_data==1) cout<<"nEvents not in golden json = "<<nThrown<<" ("<<notgoldenevtfrac*100<<" %)"<<endl;
   if(_data==0) cout<<"Sum of generator weights = "<<fixed<<setprecision(2)<<genEventSumW<<endl;
   cout<<"---------------------------------------------"<<endl;
+
+  // Analysis specific event counters:
+  cout<<"nEvt 2LOS   : "<<nevt_OS<<endl;
+  cout<<"   -> mm    : "<<nevt_OSmm<<endl;
+  cout<<"   -> me    : "<<nevt_OSme<<endl;
+  cout<<"   -> em    : "<<nevt_OSem<<endl;
+  cout<<"   -> ee    : "<<nevt_OSee<<endl;
+  cout<<"---------------------------------------------"<<endl;
+  
+  cout<<"nEvt 2LSS   : "<<nevt_SS<<endl;
+  cout<<"   -> mm    : "<<nevt_SSmm<<endl;
+  cout<<"   -> me    : "<<nevt_SSme<<endl;
+  cout<<"   -> em    : "<<nevt_SSem<<endl;
+  cout<<"   -> ee    : "<<nevt_SSee<<endl;
+  cout<<"---------------------------------------------"<<endl;
+  cout<<"Events rejected due to 3L4L overlap: "<<nevt_3L4L<<endl;
+  cout<<"Events rejected due to HEM issue   : "<<nevt_HEM<<" (2018)"<<endl;
+  cout<<"Events rejected due to EE issue    : "<<nevt_EE<<" (2022-preEE)"<<endl;
   
   //----------------------------------------------------------------
   //Storing event information in a histogram:
@@ -145,8 +165,7 @@ void nanoAna::SlaveTerminate()
   int H = time_taken / 3600;
   int M = (time_taken % 3600) / 60;
   int S = time_taken % 60;
-  cout << "\n>> Process() time: \033[34m"<< Form("%02d:%02d:%02d", H, M, S)<< "\033[0m" << endl;
-  
+  cout << "\n>> Process time: \033[34m"<< Form("%02d:%02d:%02d", H, M, S)<< "\033[0m" << endl;
 }
 void nanoAna::Terminate(){}
 
@@ -276,88 +295,86 @@ bool nanoAna::Process(Long64_t entry)
       //          Analysis block
       /////////////////////////////////////
 
-      // Pick 2L events
+      // Reset global event flags for this event //IMPORTANT
+      evt_2L = false; evt_2LOS = false; evt_2LSS = false;
+      evt_mm = false; evt_me = false; evt_em = false; evt_ee = false;
+      
+      // Pick 2L events:
       if((int)LightLepton.size() == 2){
 
-	// ---------------------------------------------------------
-	// Assign values to the variables relevant to this analysis.
-	// ---------------------------------------------------------
-
-	// Event level variables
-	nlep  = (int)LightLepton.size();
-	njet  = (int)Jet.size();
-	nbjet = (int)MediumbJet.size();
-
-	HT = 0; for(int i=0; i<(int)Jet.size(); i++) HT += Jet.at(i).v.Pt();
-	LT = LightLepton.at(0).v.Pt() + LightLepton.at(1).v.Pt();
-	LTplusMET = LT+metpt; // -->Discriminating variable
-	STvis = HT+LT;
-	ST = HT+LT+metpt;
-	STfrac = (ST!=0) ? LT/ST : 0.0;
-	  
-	// The dilepton system
-	TLorentzVector dilep = LightLepton.at(0).v + LightLepton.at(1).v;
-	dilep_pt   = dilep.Pt();
-	dilep_eta  = dilep.Eta();
-	dilep_phi  = dilep.Phi();
-	dilep_mass = dilep.M();
-	dilep_mt   = TransvMass(dilep);
+	// 1. Putting offline cuts on the leptons:
+	bool offline_trigger = false;
+	float ptcut_ele = 35;      float ptcut_mu = 26; // default
+	if(_year==2016) {ptcut_ele = 30; ptcut_mu = 26;}
+	if(_year==2017) {ptcut_ele = 35; ptcut_mu = 29;}
 	
-	// Difference between the two leptons
-	dilep_dR = LightLepton.at(0).v.DeltaR(LightLepton.at(1).v);
-	dilep_dphi = DeltaPhi(LightLepton.at(0).v.Phi(), LightLepton.at(1).v.Phi());
-	dilep_deta = fabs(LightLepton.at(0).v.Eta() - LightLepton.at(1).v.Eta());
-	dilep_ptratio = LightLepton.at(1).v.Pt()/LightLepton.at(0).v.Pt();
+	for(int i=0; i<(int)LightLepton.size(); i++){
+	  int lepton_id = fabs(LightLepton.at(i).id);
+	  float lepton_pt = LightLepton.at(i).v.Pt();
+	  if(lepton_id == 11 && lepton_pt > ptcut_ele) offline_trigger = true;
+	  if(lepton_id == 13 && lepton_pt > ptcut_mu)  offline_trigger = true;
+	}
 
-	// Leading lepton
-	lep0_pt  = LightLepton.at(0).v.Pt();
-	lep0_eta = LightLepton.at(0).v.Eta();
-	lep0_phi = LightLepton.at(0).v.Phi();
-	lep0_mt  = TransvMass(LightLepton.at(0).v);
-	if(abs(LightLepton.at(0).id)==11) lep0_iso = LightLepton.at(0).reliso03;
-	else                              lep0_iso = LightLepton.at(0).reliso04;
-	lep0_sip3d = (Float_t)LightLepton.at(0).sip3d;
+	// 2. Veoting events with additional loose leptons:
+	if(LooseLepton.size() > 2) offline_trigger = false;
+
+	// 3. Reject resonances:
+	bool reject_low_resonances = (LightLepton.at(0).v + LightLepton.at(1).v).M() > 15; //Used for 2LSS
+	bool reject_most_resonances = (LightLepton.at(0).v + LightLepton.at(1).v).M() > 150; // Used for 2LOS
+
+	// 4. Define 2LOS/2LSS
+	bool samesign = LightLepton.at(0).charge == LightLepton.at(1).charge;
+	if(offline_trigger && reject_low_resonances && samesign)   {evt_2LSS = true;}
+	if(offline_trigger && reject_most_resonances && !samesign) {evt_2LOS = true;}
+
+	// 5. Veto additional events
+	bool veto_3L4L_event = Veto3L4L();
+	bool veto_HEM_event  = VetoHEM(Jet);
+	bool veto_EE_event   = VetoEE(Jet);
+	bool veto_this_event = veto_3L4L_event || veto_HEM_event || veto_EE_event;
+	if(veto_this_event){
+	  evt_2LSS = false;
+	  evt_2LOS = false;
+	}
+
+	// Final selection of 2L events
+	evt_2L = evt_2LOS || evt_2LSS;
 	
-	// Sub-leading lepton
-	lep1_pt  = LightLepton.at(1).v.Pt();
-	lep1_eta = LightLepton.at(1).v.Eta();
-	lep1_phi = LightLepton.at(1).v.Phi();
-	lep1_mt  = TransvMass(LightLepton.at(1).v);
-	if(abs(LightLepton.at(1).id)==11) lep1_iso = LightLepton.at(1).reliso03;
-	else                              lep1_iso = LightLepton.at(1).reliso04;
-	lep1_sip3d = (Float_t)LightLepton.at(1).sip3d;
+	// Check flavor channel of the event:
+	int flav0 = fabs(LightLepton.at(0).id);
+	int flav1 = fabs(LightLepton.at(1).id);
+	if(     flav0 == 13 && flav1 == 13) evt_mm = true;
+	else if(flav0 == 13 && flav1 == 11) evt_me = true;
+	else if(flav0 == 11 && flav1 == 13) evt_em = true;
+	else if(flav0 == 11 && flav1 == 11) evt_ee = true;
 
-	// --------------------
-	// Evaluate DNN scores
-	// --------------------
-	
-	// DNN1: TTX-vs-VLLD
-	vector<float> invar_ttx = {dilep_dphi, dilep_eta, dilep_ptratio, HT, LT, metpt}; //Maintain order
-	dnn1 = evaluateDNN(session_ttx, invar_ttx, scale_min_ttx, scale_max_ttx, "input", "keras_tensor_3");
-	
-	// DNN2: DY-vs-VLLD
-	vector<float> invar_dy = {dilep_dphi, dilep_eta, dilep_ptratio, HT, LT, metpt}; //Maintain order
-	dnn2 = evaluateDNN(session_dy, invar_dy, scale_min_dy, scale_max_dy, "input", "keras_tensor_3");
+	// Counting events:
+	if(evt_2LOS){
+	  nevt_OS++;
+	  if(evt_mm) nevt_OSmm++;
+	  if(evt_me) nevt_OSme++;
+	  if(evt_em) nevt_OSem++;
+	  if(evt_ee) nevt_OSee++;
+	}
+	if(evt_2LSS){
+	  nevt_SS++;
+	  if(evt_mm) nevt_SSmm++;
+	  if(evt_me) nevt_SSme++;
+	  if(evt_em) nevt_SSem++;
+	  if(evt_ee) nevt_SSee++;
+	}
 
-	// DNN3: QCD-vs-VLLD
-	vector<float> invar_qcd = {dilep_dphi, dilep_mass, dilep_ptratio, HT, LT, metpt}; //Maintain order
-	dnn3 = evaluateDNN(session_qcd, invar_qcd, scale_min_qcd, scale_max_qcd, "input", "keras_tensor_3");
-
-	// DNN4: Wjets-vs-VLLD
-	vector<float> invar_wj = {dilep_deta, dilep_eta, dilep_ptratio, HT, LT, metpt}; //Maintain order
-	dnn4 = evaluateDNN(session_wj, invar_wj, scale_min_wj, scale_max_wj, "input", "keras_tensor_3");
-
-	////////////////////////////////
-	// Entry point for the analysis
-	////////////////////////////////
+	/////////////////////////////////////////////
+	// Pick which event to run the analysis for:
+	/////////////////////////////////////////////
+	if(evt_2LOS && evt_mm){
+	  nEvtPass++;
+	  runAnalysis();
+	}
 
       }// 2L events
-      
-    
-      // ANALYSIS ENDS HERE
     }// trigger
   }//GoodEvt
-  
   return true;
 }
 
