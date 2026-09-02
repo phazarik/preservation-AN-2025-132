@@ -38,6 +38,15 @@ static const correction::Correction* muonHLT;
 //------------------------------------------------------------
 void nanoAna::initMuonCorrections() {
 
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end()) {
+    cout << ">> MUO corrections not available for year " << _year
+	 << ", using SF = 1" << endl;
+    muonReco = muonID = muonISO = muonHLT = nullptr;
+    muon_json.reset();
+    return;
+  }
+
   string baseDir = filesystem::path(__FILE__).parent_path().string();
   string filePath = baseDir + "/JSONs/MUO/muon_Z_" + string(_campaign) + ".json.gz";
   if (FILE *f = fopen(filePath.c_str(), "r")) fclose(f);
@@ -65,7 +74,6 @@ void nanoAna::initMuonCorrections() {
 // Muon Reco SF
 //------------------
 double nanoAna::correctionlib_muon_RecoSF(const TLorentzVector &mu, const string &_mode) {
-
   if (!muonReco) return 1.0;
 
   float pt  = mu.Pt();
@@ -90,6 +98,7 @@ double nanoAna::correctionlib_muon_RecoSF(const TLorentzVector &mu, const string
 // Muon ID SF
 //----------------
 double nanoAna::correctionlib_muon_IDSF(const TLorentzVector &mu, const string &_mode) {
+  if (!muonID) return 1.0;
 
   float pt  = mu.Pt();
   float eta = fabs(mu.Eta());
@@ -113,6 +122,7 @@ double nanoAna::correctionlib_muon_IDSF(const TLorentzVector &mu, const string &
 // Muon ISO SF
 //----------------
 double nanoAna::correctionlib_muon_IsoSF(const TLorentzVector &mu, const string &_mode) {
+  if (!muonISO) return 1.0;
 
   float pt  = mu.Pt();
   float eta = fabs(mu.Eta());
@@ -136,7 +146,6 @@ double nanoAna::correctionlib_muon_IsoSF(const TLorentzVector &mu, const string 
 // Muon HLT SF
 //----------------
 double nanoAna::correctionlib_muon_HLTSF(const TLorentzVector &mu, const string &_mode) {
-
   if (!muonHLT) return 1.0;
 
   float pt  = mu.Pt();

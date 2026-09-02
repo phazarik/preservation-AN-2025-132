@@ -4,6 +4,10 @@
 //-------------------------------------------------------------------------------------------
 
 double nanoAna::GetLeptonTriggerEfficiency(const Particle &lepton, TString mode) {
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end())
+    return 1.0;
+ 
   int flav = abs(lepton.id);
   // if      (flav == 13) return TrigEff_HLT_IsoMuXX(lepton.v, mode);
   // else if (flav == 11) return TrigEff_HLT_EleXX_WPTight_Gsf(lepton.v, mode);
@@ -27,6 +31,9 @@ double nanoAna::GetLeptonTriggerEfficiency(const Particle &lepton, TString mode)
 // SingleMuon trigger
 //---------------------
 double nanoAna::TrigEff_HLT_IsoMuXX(const TLorentzVector &lepton, TString mode) {
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end())
+    return 1.0;
 
   double eff = 1.0;
   float pT  = lepton.Pt();
@@ -157,6 +164,9 @@ double nanoAna::TrigEff_HLT_IsoMuXX(const TLorentzVector &lepton, TString mode) 
 // SingleElectron trigger
 //------------------------
 double nanoAna::TrigEff_HLT_EleXX_WPTight_Gsf(const TLorentzVector &lepton, TString mode) {
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end())
+    return 1.0;
   
   double eff = 1.0;
   float pT  = lepton.Pt();

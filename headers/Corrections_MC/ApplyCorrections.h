@@ -1,5 +1,5 @@
 void nanoAna::initCustomCorrections(){
-  cout << ">> Loading custom MC corrections..." << endl;
+  cout << ">> Loading custom MC corrections." << endl;
 
   // Dynamically get the directory containing this exact header file
   std::string baseDir = std::filesystem::path(__FILE__).parent_path().string();

@@ -71,6 +71,16 @@ static const correction::Correction* egammaScaleUnc;
 //------------------------------------------------------------
 void nanoAna::initEgammaCorrections() {
 
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end()) {
+    cout << ">> EGM corrections not available for year " << _year
+	 << ", using SF = 1" << endl;
+    egammaID = egammaReco = egammaScaleUnc = nullptr;
+    egammaSS_json.reset();
+    egamma_json.reset();
+    return;
+  }
+
   string baseDir = filesystem::path(__FILE__).parent_path().string();
   
   // Reading SF JSON file:
@@ -104,6 +114,7 @@ void nanoAna::initEgammaCorrections() {
 // Electron Reco SF
 //-------------------
 double nanoAna::correctionlib_electron_RecoSF(const TLorentzVector &electron, const string &_mode) {
+  if (!egammaReco) return 1.0;
 
   float pt  = electron.Pt();
   float eta = electron.Eta();
@@ -154,6 +165,7 @@ double nanoAna::correctionlib_electron_RecoSF(const TLorentzVector &electron, co
 // Electron ID SF
 //-----------------
 double nanoAna::correctionlib_electron_IDSF(const TLorentzVector &electron, const string &_mode) {
+  if (!egammaID) return 1.0;
 
   float pt  = electron.Pt();
   float eta = electron.Eta();
@@ -198,6 +210,18 @@ double nanoAna::correctionlib_electron_IDSF(const TLorentzVector &electron, cons
 // Electron pT-smearing with systematic variations
 //-------------------------------------------------
 void nanoAna::correctionlib_electron_smearpT(Particle &electron, const string &_mode) {
+  // Using simple 2% smearing
+  int sign = 0;
+  if      (_mode == "systup")   sign = +1;
+  else if (_mode == "systdown") sign = -1;
+  double pt = electron.v.Pt();
+  double eta = electron.v.Eta();
+  double dpt = 0.02*pt*sign;
+  electron.v.SetPtEtaPhiM(pt + dpt, eta, electron.v.Phi(), electron.v.M());
+  return;
+
+  /*
+  if (!egammaScaleUnc) return 1.0;
 
   // Note: In Run-2 UL samples, the "EGM_ScaleUnc.json" file contains the keys: "scaledown", "scaleunc", "scaleup" [1]
   //   - scaleunc -> returns the scale uncertainty.
@@ -233,7 +257,7 @@ void nanoAna::correctionlib_electron_smearpT(Particle &electron, const string &_
   string mode;
   if      (_mode == "systup")   mode = "scaleup";
   else if (_mode == "systdown") mode = "scaledown";
-    
+  
   if(_year<2019){
     if(_data==1){
       values.emplace_back(era);
@@ -255,13 +279,20 @@ void nanoAna::correctionlib_electron_smearpT(Particle &electron, const string &_
     else if (_mode == "systdown") sign = -1;
     double dpt = 0.02*pt*sign;
     electron.v.SetPtEtaPhiM(pt + dpt, eta, electron.v.Phi(), electron.v.M());
-  }
+    }*/
 }
 
 //---------------------------------
 // Electron pT smearing uncertainty
 //---------------------------------
 double nanoAna::correctionlib_electron_ScaleUnc(const Particle &electron, const string &_mode) {
+  // Default:
+  if      (_mode == "systup")   return 1.00+0.02;
+  else if (_mode == "systdown") return 1.00-0.02;
+  return 1.0;
+
+  /*
+  if (!egammaScaleUnc) return 1.0;
 
   // The scale uncertainty arises due to the correction applied in the previous function.
   // This is an additional scale factor (+- uncertainties) applied per electron in MC.
@@ -302,6 +333,6 @@ double nanoAna::correctionlib_electron_ScaleUnc(const Particle &electron, const 
     if      (_mode == "systup")   return 1.00+0.02;
     else if (_mode == "systdown") return 1.00-0.02;
   }
-  return 1.0;
+  return 1.0;*/
 }
 

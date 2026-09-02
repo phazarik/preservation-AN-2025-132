@@ -80,6 +80,15 @@ static const correction::Correction* ptresjson;
 //----------------------------
 void nanoAna::initJetCorrections() {
 
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end()) {
+    cout << ">> JME corrections not available for year " << _year
+         << ", using SF = 1" << endl;
+    jecsfjson = jersfjson = ptresjson = nullptr;
+    jme_json.reset();
+    return;
+  }
+
   string baseDir = filesystem::path(__FILE__).parent_path().string();
   string filePath = baseDir + "/JSONs/JME/jet_jerc_" + string(_campaign) + ".json.gz";
   if (FILE *f = fopen(filePath.c_str(), "r")) fclose(f);
@@ -136,6 +145,7 @@ void nanoAna::initJetCorrections() {
 // Jet Energy Correction SF
 //--------------------------
 double nanoAna::correctionlib_JEC(const TLorentzVector &jet, const string &_mode) {
+  if (!jecsfjson) return 1.0;
 
   float pt  = jet.Pt();
   float eta = jet.Eta();
@@ -155,6 +165,7 @@ double nanoAna::correctionlib_JEC(const TLorentzVector &jet, const string &_mode
 // Jet Energy Resolution SF / Smearing
 //-------------------------------------
 double nanoAna::correctionlib_JER(const TLorentzVector &jet, const string &_mode) {
+  if (!jersfjson || !ptresjson) return 1.0;
 
   float pt  = jet.Pt();
   float eta = jet.Eta();

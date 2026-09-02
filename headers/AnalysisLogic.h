@@ -67,15 +67,15 @@ void nanoAna::RunAnalysis(){
     double ef1 = GetLeptonTriggerEfficiency(LightLepton.at(1), "nom");
     double wt_trigEff   = 1.0 - (1.0 - ef0) * (1.0 - ef1);    
     double wt_pileup    = safeSF(correctionlib_pileupSF("nom"));
-    double wt_pdf       = returnPDFweight("up");
-    double wt_qcdscale  = returnQCDscaleWeight("up");
+    double wt_pdf       = returnPDFweight("nom");
+    double wt_qcdscale  = returnQCDscaleWeight("nom");
     double wt_prefiring = returnL1prefireWeight("nom");
 
     // 4. Analysis specific corrections:
     double wt_mc_custom = 1.0;
-    const vector<TString> dySamples = {"DYto2L", "DYtoLL", "DYGToLLG"};
+    const vector<TString> dySamples = {"DYto2L", "DYtoLL", "DYJetsToLL", "DYGToLLG"};
     const vector<TString> ttSamples = {"TT_", "TTV"};
-    const vector<TString> qcdSamples = {"QCDMu", "QCDEM"};
+    const vector<TString> qcdSamples = {"QCD", "QCDMu", "QCDEM"};
     const vector<TString> wjSamples = {"WtoLNu", "WGtoLNuG"};
     auto containsAny = [&](const vector<TString>& samples) {
       for (const auto& sample : samples)

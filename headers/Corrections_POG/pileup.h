@@ -38,6 +38,15 @@ static const correction::Correction* puCorr;
 // Initialize PU corrections
 //------------------------------------------------------------
 void nanoAna::initPUCorrections() {
+
+  const vector<int> validYears = {2016, 2017, 2018, 2022, 2023};
+  if (find(validYears.begin(), validYears.end(), _year) == validYears.end()) {
+    cout << ">> LUM corrections not available for year " << _year
+         << ", using SF = 1" << endl;
+    puCorr = nullptr;
+    pu_json.reset();
+    return;
+  }
   
   string baseDir = filesystem::path(__FILE__).parent_path().string();
   string filePath = baseDir + "/JSONs/LUM/puWeights_" + string(_campaign) + ".json.gz";
@@ -69,7 +78,7 @@ void nanoAna::initPUCorrections() {
 // Pileup SF
 //----------------------------
 double nanoAna::correctionlib_pileupSF(const string &_mode) {
-  if(!puCorr) { cout << "[ERROR] PU corrections not initialized!\n"; return 1.0; }
+  if (!puCorr) return 1.0;
   if(*Pileup_nTrueInt > 99.0) return 1.0;
   
   string mode;
