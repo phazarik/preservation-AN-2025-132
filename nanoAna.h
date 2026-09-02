@@ -254,7 +254,7 @@ public :
   DynamicArrayReader<unsigned char> Photon_seedGain;
   DynamicArrayReader<float> Photon_pfRelIso03_all;
   DynamicArrayReader<float> Photon_pfRelIso03_chg;
-
+  
   // PuppiMET
   DynamicValueReader<float> PuppiMET_phi;
   DynamicValueReader<float> PuppiMET_phiJERUp;
@@ -263,6 +263,16 @@ public :
   DynamicValueReader<float> PuppiMET_ptJERUp;
   DynamicValueReader<float> PuppiMET_ptJESUp;
   DynamicValueReader<float> PuppiMET_sumEt;
+
+  // Primary Vertex
+  DynamicValueReader<float> PV_ndof;
+  DynamicValueReader<float> PV_x;
+  DynamicValueReader<float> PV_y;
+  DynamicValueReader<float> PV_z;
+  DynamicValueReader<float> PV_chi2;
+  DynamicValueReader<float> PV_score;
+  DynamicValueReader<int> PV_npvs;
+  DynamicValueReader<int> PV_npvsGood;
 
   // Rho (used during JEC/JES)
   DynamicValueReader<float> fixedGridRhoFastjetAll;
@@ -397,6 +407,19 @@ public :
   DynamicArrayReader<int> GenVisTau_genPartIdxMother;
   DynamicArrayReader<int> GenVisTau_status;
 
+  // L1-prefiring weights
+  DynamicValueReader<float> L1PreFiringWeight_Dn;
+  DynamicValueReader<float> L1PreFiringWeight_ECAL_Dn;
+  DynamicValueReader<float> L1PreFiringWeight_ECAL_Nom;
+  DynamicValueReader<float> L1PreFiringWeight_ECAL_Up;
+  DynamicValueReader<float> L1PreFiringWeight_Muon_Nom;
+  DynamicValueReader<float> L1PreFiringWeight_Muon_StatDn;
+  DynamicValueReader<float> L1PreFiringWeight_Muon_StatUp;
+  DynamicValueReader<float> L1PreFiringWeight_Muon_SystDn;
+  DynamicValueReader<float> L1PreFiringWeight_Muon_SystUp;
+  DynamicValueReader<float> L1PreFiringWeight_Nom;
+  DynamicValueReader<float> L1PreFiringWeight_Up;
+
   // LHE weights (non-QCD MC)
   DynamicValueReader<float> LHEWeight_originalXWGTUP;
   DynamicValueReader<int> nLHEPdfWeight;
@@ -432,6 +455,15 @@ public :
   DynamicArrayReader<float> LHEPart_mass;
   DynamicArrayReader<float> LHEPart_incomingpz;
 
+  // Pileup
+  DynamicValueReader<int> Pileup_nPU;
+  DynamicValueReader<int> Pileup_sumEOOT;
+  DynamicValueReader<int> Pileup_sumLOOT;
+  DynamicValueReader<float> Pileup_nTrueInt;
+  DynamicValueReader<float> Pileup_pudensity;
+  DynamicValueReader<float> Pileup_gpudensity;
+  DynamicValueReader<float> Pileup_pthatmax;
+
   //-----------------------------------------------------------------------
 
   nanoAna(TTree * /*tree*/ =0) { }
@@ -462,6 +494,8 @@ public :
     //These need to be dynamicaly expanded in BookHistograms() function.
     vector<TH1F *> hist;
     vector<TH1F *> dnn;
+    vector<TH1F *> ana;
+    vector<TH1F *> evtwt;
   };
   struct Particle {
     TLorentzVector v;
@@ -527,7 +561,64 @@ public :
   bool VetoEE(vector<Particle> jet);
 
   //AnalysisLogic.h
-  void runAnalysis();
+  void RunAnalysis();
+  void AssignVarValues();
+  void FillHistograms(float wt);
+
+  //Corrections:
+  //Initiate correctionlib files:
+  void initEgammaCorrections();
+  void initMuonCorrections();
+  void initJetCorrections();
+  void initPUCorrections();
+  //Electrons:
+  double correctionlib_electron_RecoSF(const TLorentzVector &electron, const string &_mode);
+  double correctionlib_electron_IDSF(const TLorentzVector &electron, const string &_mode);
+  void   correctionlib_electron_smearpT(Particle &electron, const string &_mode);
+  double correctionlib_electron_ScaleUnc(const Particle &electron, const string &_mode);
+  //Muons:
+  double correctionlib_muon_RecoSF(const TLorentzVector &mu, const string &_mode);
+  double correctionlib_muon_IDSF(const TLorentzVector &mu, const string &_mode);
+  double correctionlib_muon_IsoSF(const TLorentzVector &mu, const string &_mode);
+  double correctionlib_muon_HLTSF(const TLorentzVector &mu, const string &_mode); //not used
+  void   correctionlib_muon_smearpT(Particle &muon, const string &_mode);
+  double correctionlib_muon_ScaleUnc(const Particle &muon, const string &_mode);
+  //jets:
+  double correctionlib_JEC(const TLorentzVector &jet, const string &_mode);
+  double correctionlib_JER(const TLorentzVector &jet, const string &_mode);
+  //MET:
+  pair<float,float> METXYCorr_Met_MetPhi(float metpt, float metphi);
+  //Pileup:
+  double correctionlib_pileupSF(const string &_mode);
+  //Triggers:
+  double GetLeptonTriggerEfficiency(const Particle &lepton, TString mode);
+  double TrigEff_HLT_IsoMuXX(const TLorentzVector &lepton, TString mode);
+  double TrigEff_HLT_EleXX_WPTight_Gsf(const TLorentzVector &lepton, TString mode);
+  //Others:
+  double returnPDFweight(string mode);
+  double returnQCDscaleWeight(string mode);
+  double returnL1prefireWeight(TString mode);
+
+  // MC corrections:
+  struct GlobalSF {double scale = 1.0; double stat = 0.0;};
+  struct BinnedSF {
+    double low = 0.0;
+    double high = 0.0;
+    double scale = 1.0;
+    double stat = 0.0;
+    double syst = 0.0;
+  };
+
+  map<TString, map<int, GlobalSF>> sf_qcd;
+  map<TString, map<int, GlobalSF>> sf_wj;
+  map<TString, map<int, GlobalSF>> sf_ttx_global;
+  map<TString, map<int, vector<BinnedSF>>> sf_dy;
+  map<TString, map<int, vector<BinnedSF>>> sf_ttx;
+
+  void initCustomCorrections();
+  double returnGlobalSF(const map<TString, map<int, GlobalSF>>& sf_map, TString systMode);
+  double returnBinnedSF(const map<TString, map<int, vector<BinnedSF>>>& sf_map,
+			double varValue, TString systMode);
 
 protected:
   Hists h;
@@ -541,7 +632,7 @@ private:
   // Absolute constants: (fed from the driver script)
   const char *_HstFileName;
   const char *_SumFileName;
-  TString _era, _sample;
+  TString _era, _campaign, _sample;
   int _verbosity;
 
   // Constants: (Initialized once; do not change during execution)
@@ -559,6 +650,7 @@ private:
   int nevt_OS, nevt_OSmm, nevt_OSme, nevt_OSem, nevt_OSee;
   int nevt_SS, nevt_SSmm, nevt_SSme, nevt_SSem, nevt_SSee;
   int nevt_3L4L, nevt_HEM, nevt_EE;
+  int _channel;
   float genEventSumW;
 
   // Variables relevant for the analysis
@@ -574,7 +666,7 @@ private:
   time_t start, end, buffer;
 
   //json:
-  json goldenJSONdata; 
+  json goldenJSONdata;
   
   //Physics objects:
   vector<Particle> genMuon, genElectron, genLightLepton, genJet;

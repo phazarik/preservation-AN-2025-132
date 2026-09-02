@@ -181,6 +181,7 @@ rule process_chunk:
         #voms_proxy = True ## bypassed by manually uploading the proxy
     shell:
         "mkdir -p {TMP_DIR} && "
+	"source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh && "
         "export XRD_NETWORKTIMEOUT=60 &&"
         "export XRD_CONNECTIONRETRY=2 && "
         "export XRD_REQUESTTIMEOUT=60 && "

@@ -20,5 +20,35 @@ void nanoAna::BookHistograms()
   h.dnn[4] = new TH1F("var4_LT",  "LT",  GEVbins.size()-1, &GEVbins[0]);
   h.dnn[5] = new TH1F("var5_MET", "MET", GEVbins.size()-1, &GEVbins[0]);
   for(int i = 0; i < (int)h.dnn.size(); i++) h.dnn[i]->Sumw2();
+
+  //Analysis plots:
+  h.ana.resize(1);
+  h.ana[0] = new TH1F("LTplusMET", "LTplusMET", 4, std::vector<double>{0,400,500,600,650}.data());
+  for(int i = 0; i < (int)h.ana.size(); i++) h.ana[i]->Sumw2();
+
+  //Weights:
+  h.evtwt.resize(16);
+  h.evtwt[0]  = new TH1F("wt_lumWeight", "lumWeight", 100, -5000, 5000);
+  h.evtwt[1]  = new TH1F("wt_genWeight", "genWeight", 100, -5, 5);
+  h.evtwt[2]  = new TH1F("wt_eleReco",   "eleReco",   100, 0, 2);
+  h.evtwt[3]  = new TH1F("wt_eleIdIso",  "eleIdIso",  100, 0, 2);
+  h.evtwt[4]  = new TH1F("wt_muReco",    "muReco",    100, 0, 2);
+  h.evtwt[5]  = new TH1F("wt_muId",      "muId",      100, 0, 2);
+  h.evtwt[6]  = new TH1F("wt_muIso",     "muIso",     100, 0, 2);
+  h.evtwt[7]  = new TH1F("wt_trigEff",   "trigEff",   100, 0, 2);
+  h.evtwt[8]  = new TH1F("wt_pileup",    "pileup",    100, 0, 2);
+  h.evtwt[9]  = new TH1F("wt_pdf",       "pdf",       100, 0, 2);
+  h.evtwt[10] = new TH1F("wt_qcdscale",  "qcdscale",  100, 0, 2);
+  h.evtwt[11] = new TH1F("wt_prefiring", "prefiring", 100, 0, 2);
+  h.evtwt[12] = new TH1F("wt_mc_custom", "mc_custom", 100, 0, 2);
+  h.evtwt[13] = new TH1F("wt_POG",       "POG",       100, 0, 2);
+  h.evtwt[14] = new TH1F("wt_theory",    "theory",    100, 0, 2);
+  h.evtwt[15] = new TH1F("wt_evt",       "evtwt",     100, 0, 2);
+  //for(int i = 0; i < (int)h.evtwt.size(); i++) h.evtwt[i]->Sumw2();
+}
+
+void nanoAna::FillHistograms(float wt){
+
+  h.ana[0] -> Fill(LTplusMET, wt);
   
 }

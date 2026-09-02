@@ -34,7 +34,13 @@ tar -xzf sandbox.tar.gz
 infile=$(python3 -c "import PSet; print(PSet.process.source.fileNames[0])")
 
 # -----------------------------------------------------------------------------
-# 4. Execute the analysis
+# 4. Setup Environment
+# -----------------------------------------------------------------------------
+echo ">> Sourcing LCG environment for correctionlib ..."
+source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh
+
+# -----------------------------------------------------------------------------
+# 5. Execute the analysis
 # -----------------------------------------------------------------------------
 # Define the output file. This MUST exactly match the name specified 
 # in crab_config.py under config.JobType.outputFiles.
@@ -53,7 +59,7 @@ root -q -b -l "$root_command"
 ROOT_EXIT_CODE=$?
 
 # -----------------------------------------------------------------------------
-# 5. Generate the mandatory FrameworkJobReport.xml (FJR)
+# 6. Generate the mandatory FrameworkJobReport.xml (FJR)
 # -----------------------------------------------------------------------------
 # CRAB requires this XML file to determine job status.
 
@@ -76,7 +82,7 @@ EOF
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Pass the exit code back to HTCondor
+# 7. Pass the exit code back to HTCondor
 # -----------------------------------------------------------------------------
 # The bash wrapper script must terminate with the exact ROOT exit code.
 # Otherwise, it defaults to 0, masking any actual failures from HTCondor.

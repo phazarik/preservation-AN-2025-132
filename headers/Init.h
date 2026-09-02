@@ -197,6 +197,16 @@ void nanoAna::Init(TTree *tree)
   PuppiMET_ptJESUp.Init(tree, fReader, "PuppiMET_ptJESUp", 0);
   PuppiMET_sumEt.Init(tree, fReader, "PuppiMET_sumEt", 0);
 
+  // Initialize Primary Vertex
+  PV_ndof.Init(tree, fReader, "PV_ndof");
+  PV_x.Init(tree, fReader, "PV_x");
+  PV_y.Init(tree, fReader, "PV_y");
+  PV_z.Init(tree, fReader, "PV_z");
+  PV_chi2.Init(tree, fReader, "PV_chi2");
+  PV_score.Init(tree, fReader, "PV_score");
+  PV_npvs.Init(tree, fReader, "PV_npvs");
+  PV_npvsGood.Init(tree, fReader, "PV_npvsGood");
+
   // Initialize Rho
   fixedGridRhoFastjetAll.Init(tree,fReader,{"Rho_fixedGridRhoFastjetAll","fixedGridRhoFastjetAll"},0.0);
   fixedGridRhoFastjetCentral.Init(tree,fReader,{"Rho_fixedGridRhoFastjetCentral","fixedGridRhoFastjetCentral"},0.0);
@@ -331,6 +341,19 @@ void nanoAna::Init(TTree *tree)
   GenVisTau_genPartIdxMother.Init(tree, fReader, "GenVisTau_genPartIdxMother");
   GenVisTau_status.Init(tree, fReader, "GenVisTau_status");
 
+  // Initialize L1-prefiring weights
+  L1PreFiringWeight_Dn.Init(tree, fReader, "L1PreFiringWeight_Dn", 1.0f);
+  L1PreFiringWeight_ECAL_Dn.Init(tree, fReader, "L1PreFiringWeight_ECAL_Dn", 1.0f);
+  L1PreFiringWeight_ECAL_Nom.Init(tree, fReader, "L1PreFiringWeight_ECAL_Nom", 1.0f);
+  L1PreFiringWeight_ECAL_Up.Init(tree, fReader, "L1PreFiringWeight_ECAL_Up", 1.0f);
+  L1PreFiringWeight_Muon_Nom.Init(tree, fReader, "L1PreFiringWeight_Muon_Nom", 1.0f);
+  L1PreFiringWeight_Muon_StatDn.Init(tree, fReader, "L1PreFiringWeight_Muon_StatDn", 1.0f);
+  L1PreFiringWeight_Muon_StatUp.Init(tree, fReader, "L1PreFiringWeight_Muon_StatUp", 1.0f);
+  L1PreFiringWeight_Muon_SystDn.Init(tree, fReader, "L1PreFiringWeight_Muon_SystDn", 1.0f);
+  L1PreFiringWeight_Muon_SystUp.Init(tree, fReader, "L1PreFiringWeight_Muon_SystUp", 1.0f);
+  L1PreFiringWeight_Nom.Init(tree, fReader, "L1PreFiringWeight_Nom", 1.0f);
+  L1PreFiringWeight_Up.Init(tree, fReader, "L1PreFiringWeight_Up", 1.0f);
+  
   // Initialize LHE weights
   LHEWeight_originalXWGTUP.Init(tree, fReader, "LHEWeight_originalXWGTUP", 1.0); // weight fallback: 1
   nLHEPdfWeight.Init(tree, fReader, "nLHEPdfWeight", 0);
@@ -365,6 +388,15 @@ void nanoAna::Init(TTree *tree)
   LHEPart_phi.Init(tree, fReader, "LHEPart_phi");
   LHEPart_mass.Init(tree, fReader, "LHEPart_mass");
   LHEPart_incomingpz.Init(tree, fReader, "LHEPart_incomingpz");
+
+  // Initialize Pileup
+  Pileup_nPU.Init(tree, fReader, "Pileup_nPU", -1);
+  Pileup_sumEOOT.Init(tree, fReader, "Pileup_sumEOOT", -1);
+  Pileup_sumLOOT.Init(tree, fReader, "Pileup_sumLOOT", -1);
+  Pileup_nTrueInt.Init(tree, fReader, "Pileup_nTrueInt", -1.0f);
+  Pileup_pudensity.Init(tree, fReader, "Pileup_pudensity", -1.0f);
+  Pileup_gpudensity.Init(tree, fReader, "Pileup_gpudensity", -1.0f);
+  //Pileup_pthatmax.Init(tree, fReader, "Pileup_pthatmax", -1.0f);
   
 }
 

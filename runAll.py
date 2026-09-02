@@ -73,6 +73,11 @@ def processOneSample(config):
     if not os.path.isfile(config["input"]):
         print(f"\033[31m[ERROR] Input file not found: {config['input']}\033[0m")
         return
+
+    cvmfs_setup = "/cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh"
+    if os.path.isfile(cvmfs_setup):
+        print(">> CVMFS detected. Sourcing LCG environment for correctionlib.")
+        subprocess.run(f"source {cvmfs_setup}", shell=True, executable='/bin/bash')
     
     command = [
         "root", "-l", "-q",

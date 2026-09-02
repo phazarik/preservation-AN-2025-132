@@ -19,6 +19,8 @@
 #include "headers/ProduceRecoCollection.h"
 #include "headers/VetoEvents.h"
 #include "headers/AnalysisLogic.h"
+#include "headers/Corrections_POG/headers.h"
+#include "headers/Corrections_MC/ApplyCorrections.h"
 
 void nanoAna::Begin(TTree * /*tree*/){TString option = GetOption();}
 void nanoAna::SlaveBegin(TTree *tree)
@@ -37,15 +39,15 @@ void nanoAna::SlaveBegin(TTree *tree)
 
   // Set year and b-tagging working point from _era:
   // b-tagging threshold source: https://btv-wiki.docs.cern.ch/ScaleFactors/
-  _btaggingWP = -1; _year = -1;
-  if      (_era.Contains("2016-pre"))  {_btaggingWP = 0.2598; _year = 2016;}
-  else if (_era.Contains("2016-post")) {_btaggingWP = 0.2489; _year = 2016;}
-  else if (_era.Contains("2017"))      {_btaggingWP = 0.3040; _year = 2017;}
-  else if (_era.Contains("2018"))      {_btaggingWP = 0.2783; _year = 2018;}
-  else if (_era.Contains("22-pre"))    {_btaggingWP = 0.3086; _year = 2022;}
-  else if (_era.Contains("22-post"))   {_btaggingWP = 0.3196; _year = 2022;}
-  else if (_era.Contains("23-pre"))    {_btaggingWP = 0.2431; _year = 2023;}
-  else if (_era.Contains("23-post"))   {_btaggingWP = 0.2435; _year = 2023;}
+  _btaggingWP = -1; _year = -1; _campaign="None";
+  if      (_era.Contains("2016-pre"))  {_btaggingWP = 0.2598; _year = 2016; _campaign="2016preVFP_UL";}
+  else if (_era.Contains("2016-post")) {_btaggingWP = 0.2489; _year = 2016; _campaign="2016postVFP_UL";}
+  else if (_era.Contains("2017"))      {_btaggingWP = 0.3040; _year = 2017; _campaign="2017_UL";}
+  else if (_era.Contains("2018"))      {_btaggingWP = 0.2783; _year = 2018; _campaign="2018_UL";}
+  else if (_era.Contains("22-pre"))    {_btaggingWP = 0.3086; _year = 2022; _campaign="Run3Summer22";}
+  else if (_era.Contains("22-post"))   {_btaggingWP = 0.3196; _year = 2022; _campaign="Run3Summer22EE";}
+  else if (_era.Contains("23-pre"))    {_btaggingWP = 0.2431; _year = 2023; _campaign="Run3Summer23";}
+  else if (_era.Contains("23-post"))   {_btaggingWP = 0.2435; _year = 2023; _campaign="Run3Summer23BPix";}
   else if(_era.Contains("24"))         {_year = 2024;}
   if(_year < 0 ) cout<<"\033[31m[ERROR] Could not set year. Provide correct _era.\033[0m"<<endl;
   if(_btaggingWP < 0 ) cout<<"\033[31m[ERROR] Could not set b-tagging WP. Provide correct _era.\033[0m"<<endl;
@@ -78,6 +80,13 @@ void nanoAna::SlaveBegin(TTree *tree)
 
   // Load Golden JSON data:
   goldenJSONdata = loadGoldenJSON();
+
+  // Load corrections from POG:
+  initEgammaCorrections();
+  initMuonCorrections();
+  initJetCorrections();
+  initPUCorrections();
+  initCustomCorrections();
   
   // Create a TFile to write on.
   // Call any other function that does any kind of initialization of objects/variables.
@@ -271,10 +280,6 @@ bool nanoAna::Process(Long64_t entry)
       // Reco-level objects
       //---------------------
 
-      metpt = *PuppiMET_pt; metphi = *PuppiMET_phi; //nominal
-      //metpt = *PuppiMET_phiUnclusteredUp;   metphi = *PuppiMET_phiUnclusteredUp; //unclustered-up
-      //metpt = *PuppiMET_phiUnclusteredDown; metphi = *PuppiMET_phiUnclusteredDown; //unclustered-down
-
       // Clear the object arrays to get rid of entries from the previous event
       Muon.clear();        LooseMuon.clear();
       Electron.clear();    LooseElectron.clear();
@@ -341,12 +346,13 @@ bool nanoAna::Process(Long64_t entry)
 	evt_2L = evt_2LOS || evt_2LSS;
 	
 	// Check flavor channel of the event:
+	_channel = -1;
 	int flav0 = fabs(LightLepton.at(0).id);
 	int flav1 = fabs(LightLepton.at(1).id);
-	if(     flav0 == 13 && flav1 == 13) evt_mm = true;
-	else if(flav0 == 13 && flav1 == 11) evt_me = true;
-	else if(flav0 == 11 && flav1 == 13) evt_em = true;
-	else if(flav0 == 11 && flav1 == 11) evt_ee = true;
+	if(     flav0 == 13 && flav1 == 13) {evt_mm = true; _channel=0;}
+	else if(flav0 == 13 && flav1 == 11) {evt_me = true; _channel=1;}
+	else if(flav0 == 11 && flav1 == 13) {evt_em = true; _channel=2;}
+	else if(flav0 == 11 && flav1 == 11) {evt_ee = true; _channel=3;}
 
 	// Counting events:
 	if(evt_2LOS){
@@ -364,13 +370,7 @@ bool nanoAna::Process(Long64_t entry)
 	  if(evt_ee) nevt_SSee++;
 	}
 
-	/////////////////////////////////////////////
-	// Pick which event to run the analysis for:
-	/////////////////////////////////////////////
-	if(evt_2LOS && evt_mm){
-	  nEvtPass++;
-	  runAnalysis();
-	}
+	RunAnalysis();
 
       }// 2L events
     }// trigger

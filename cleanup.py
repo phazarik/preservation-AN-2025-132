@@ -10,12 +10,13 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 ## Default cleanup: Editor backups and ROOT ACLiC compilation artifacts
 junk = [
-    "*~",
+    "**/*~",
     "*.so",
     "*.d",
     "*.pcm",
     "*_ACLiC_*",
     "headers/*~",
+    "headers/Corrections/*~",
     "reana/*~",
     "CRAB/*~",
     "CRAB/__pycache__"
@@ -26,13 +27,11 @@ if args.all:
         "outputs/*.root",
         "outputs/*.txt",
         "*.root",
-        "*.txt",
         "CRAB/*tar.gz"
     ]
 
 for f in junk:
-    matches = glob.glob(os.path.join(script_dir, f))
-
+    matches = glob.glob(os.path.join(script_dir, f), recursive=True)
     for match in matches:
         cmd = f'rm -rf "{match}"'
         print(f">> {cmd}")
