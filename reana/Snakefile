@@ -202,7 +202,7 @@ rule merge_sample:
     output:
         f"{OUTPUT_DIR}/{{filename}}"
     container:
-        CONTAINER
+        "docker://reanahub/reana-env-root6:6.38.00"
     shell:
         "hadd -f {output} {input}"
 
