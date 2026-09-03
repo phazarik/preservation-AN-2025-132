@@ -34,10 +34,15 @@ tar -xzf sandbox.tar.gz
 infile=$(python3 -c "import PSet; print(PSet.process.source.fileNames[0])")
 
 # -----------------------------------------------------------------------------
-# 4. Setup Environment
+# 4. Setup environment for correctionlib compatibility
 # -----------------------------------------------------------------------------
-echo ">> Sourcing LCG environment for correctionlib ..."
-source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh
+echo ">> Sourcing CMSSW environment..."
+source /cvmfs/cms.cern.ch/cmsset_default.sh
+export SCRAM_ARCH=el8_amd64_gcc12
+eval $(scramv1 project CMSSW CMSSW_14_1_0_pre4)
+cd CMSSW_14_1_0_pre4/src
+eval $(scramv1 runtime -sh)
+cd ../../
 
 # -----------------------------------------------------------------------------
 # 5. Execute the analysis

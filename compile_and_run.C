@@ -44,12 +44,12 @@ void compile_and_run(
     cout << ">> Loading correctionlib ..." << endl;
     TString inc = gSystem->GetFromPipe("correction config --incdir");
     TString lib = gSystem->GetFromPipe("correction config --libdir");
-    inc.ReplaceAll("\n", ""); lib.ReplaceAll("\n", ""); // STRIP THE NEWLINES
+    inc.ReplaceAll("\n", ""); lib.ReplaceAll("\n", ""); // STRIP THE NEWLINES    
     gSystem->AddIncludePath(Form("-I%s", inc.Data()));
-    gSystem->AddLinkedLibs(Form("-Wl,-rpath,%s %s/libcorrectionlib.so", lib.Data(), lib.Data()));    
-    if (gSystem->Load(Form("%s/libcorrectionlib.so", lib.Data())) < 0) {
-        cerr << RED << "[ERROR] Could not load libcorrectionlib.so!" << RESET << endl;
-        return;
+    gSystem->AddLinkedLibs(Form("-L%s -lcorrectionlib", lib.Data()));
+    if (gSystem->Load("libcorrectionlib.so") < 0) {
+      cerr << RED << "[ERROR] Could not load libcorrectionlib.so!" << RESET << endl;
+      return;
     }
 
     // -------------------------------------------------------------------------

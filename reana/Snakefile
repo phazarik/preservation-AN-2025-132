@@ -7,17 +7,13 @@
 #   2. Merge the per-chunk ROOT outputs for each sample.
 #   3. Copy the merged ROOT files to the configured EOS directory.
 #
-# The analysis jobs run inside the ROOT 6 container specified below.
-#
-# Samples are no longer read from a single samples.json. Instead, every
-# *.json file under reana/samples/ describes one sample: its full list of
+# Every *.json file under reana/samples/ describes one sample: its full list of
 # input files plus its processing parameters (era, sample name, output
 # filename). The sample key is simply the file's basename (e.g. dyv12.json
 # defines the sample "dyv12"). Adding, removing, or editing a sample - or
-# creating a small test_sample.json for quick debugging - is just a matter
-# of editing files in that directory; nothing else in the workflow needs to
-# change. See reana/prepare.py for how the real sample files are generated
-# from DAS.
+# creating a small test_sample.json for quick debugging - is handled by
+# editing files in that directory. See reana/prepare.py for how the sample
+# files are generated from DAS.
 # ------------------------------------------------------------------------------
 
 import os
@@ -25,14 +21,15 @@ import glob
 import json
 import math
 
+# ------------------------------------------------------------------------------
 # Docker image used for all workflow steps.
-# NOTE: 6.30.04 does not exist on Docker Hub (confirmed via the registry's
-# tag list) - jobs referencing it will loop forever between "held" (hold
-# code 35, InvalidDockerImage) and "released" without ever running any
-# actual code. 6.38.00 is the current published tag; 6.18.04 is the older
-# one used in most REANA/ROOT6 examples if 6.38.00 turns out to be missing
-# something the analysis relies on.
-CONTAINER = "docker://reanahub/reana-env-root6:6.38.00"
+#
+# NOTE: We use the official CMS Enterprise Linux 8 (EL8) base image. This 
+# perfectly matches the SCRAM_ARCH (el8_amd64_gcc12) used to set up the 
+# CMSSW environment, ensuring all compiled C++ code links natively against
+# the correct system libraries.
+# ------------------------------------------------------------------------------
+CONTAINER = "docker://cmssw/el8:x86_64"
 
 # Directory structure inside the REANA workspace.
 # Individual chunk outputs are kept in outputs/tmp until they are merged.
@@ -96,8 +93,7 @@ SAMPLE_CHUNKS = {
 
 # ------------------------------------------------------------------------------
 # Define per-chunk outputs
-# Instead of one job per file, there is one job per chunk.
-# This produces one temporary ROOT file per chunk.
+# There is one job per chunk. This produces one temporary ROOT file per chunk.
 # ------------------------------------------------------------------------------
 
 PER_CHUNK_OUTPUTS = {}
@@ -140,10 +136,9 @@ rule all:
 #   3. Runs compile_and_run.C for each file in the chunk.
 #   4. Merges them internally to produce one ROOT output file for the chunk.
 #
-# Each job only depends on its own sample's JSON file (sample_config below),
-# not on every sample's file list. This means editing or regenerating one
-# sample no longer invalidates already-computed chunks belonging to other
-# samples.
+# Each job only depends on its own sample's JSON file (sample_config below).
+# This ensures that editing or regenerating one sample does not invalidate
+# already-computed chunks belonging to other samples.
 #
 # Jobs are submitted to the CERN HTCondor backend. Kerberos authentication is
 # required for submitting to the CERN HTCondor cluster, while the VOMS proxy
@@ -153,12 +148,9 @@ rule all:
 rule process_chunk:
     input:
         wrapper = "reana/runJob.py",
-        # Every sample file is named exactly "<sample_key>.json", so the path
-        # is deterministic from the wildcard alone - no lookup function is
-        # needed. (A lambda here previously broke `reana-client create` with
-        # "Object of type function is not JSON serializable": REANA's
-        # Snakemake integration cannot serialize a named/keyword input that
-        # is still an unresolved callable at workflow-creation time.)
+        # Every sample file is named exactly "<sample_key>.json". The path
+        # is deterministic from the wildcard alone, avoiding the need for
+        # lambda lookups which cannot be serialized by REANA's workflow parser.
         sample_config = f"{SAMPLES_DIR}/{{sample_key}}.json",
         deps = [
             "compile_and_run.C",
@@ -176,20 +168,25 @@ rule process_chunk:
     resources:
         compute_backend = "htcondorcern",
         htcondor_max_runtime = HTCONDOR_MAX_RUNTIME,
-	kubernetes_memory_limit = "4G",
+        kubernetes_memory_limit = "4G",
         kerberos = True
-        #voms_proxy = True ## bypassed by manually uploading the proxy
+        # voms_proxy = True # bypassed by manually uploading the proxy
     shell:
-        "mkdir -p {TMP_DIR} && "
-	"source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh && "
-        "export XRD_NETWORKTIMEOUT=60 &&"
-        "export XRD_CONNECTIONRETRY=2 && "
-        "export XRD_REQUESTTIMEOUT=60 && "
-        "python3 -u {input.wrapper} "
-        "{wildcards.sample_key} "
-        "{wildcards.chunk_index} "
-        "{CHUNK_SIZE} "
-        "{output.outfile}"
+        """
+        mkdir -p {TMP_DIR}
+        source /cvmfs/cms.cern.ch/cmsset_default.sh
+        export SCRAM_ARCH=el8_amd64_gcc12
+        scramv1 project CMSSW CMSSW_14_1_0_pre4
+        cd CMSSW_14_1_0_pre4/src
+        eval `scramv1 runtime -sh`
+        cd ../../
+        
+        export XRD_NETWORKTIMEOUT=60
+        export XRD_CONNECTIONRETRY=2
+        export XRD_REQUESTTIMEOUT=60
+        
+        python3 -u {input.wrapper} {wildcards.sample_key} {wildcards.chunk_index} {CHUNK_SIZE} {output.outfile}
+        """
 
 # ------------------------------------------------------------------------------
 # Merge outputs for each sample
@@ -227,5 +224,8 @@ rule publish_to_eos:
     resources:
         kerberos = True
     shell:
-        "mkdir -p {EOS_OUTPUT_DIR} && "
-        "cp {input} {EOS_OUTPUT_DIR}/"
+        """
+        mkdir -p {EOS_OUTPUT_DIR}
+        cp {input} {EOS_OUTPUT_DIR}/
+        """
+
